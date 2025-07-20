@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Audio Test</title>
+</head>
+<body>
+    <h2>WebRTC Assistant Test</h2>
+    <button id="start">Start WebRTC</button>
+
+    <script>
+	const wsUrl = "wss://llm.edusmartai.com/api/webrtc/assistant?username=testuser&token=abc123";
+
+        document.getElementById("start").onclick = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const pc = new RTCPeerConnection();
+
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            const ws = new WebSocket(wsUrl);
+            ws.onopen = async () => {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                ws.send(JSON.stringify({
+                    type: "offer",
+                    sdp: offer.sdp
+                }));
+            };
+
+            ws.onmessage = async (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === "answer") {
+                    const desc = new RTCSessionDescription(message);
+                    await pc.setRemoteDescription(desc);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("WebSocket closed");
+            };
+
+            pc.ontrack = (event) => {
+                console.log("Track received from server:", event);
+            };
+        };
+    </script>
+</body>
+</html>
+
